@@ -23,7 +23,6 @@ This project aims to develop a tourism destination recommendation system using m
 4. **User Interface**: Users can input their unique ID into the web interface to receive a list of recommended destinations.
 
 ## Installation and Usage
-- Ensure Python 3.x is installed.
 - Install dependencies: `pip install -r requirements.txt`.
 - Run the Flask app: `python3 app.py`.
 - Access the web interface via `http://localhost:5000`.
