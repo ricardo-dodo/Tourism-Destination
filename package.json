@@ -22,9 +22,9 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:next\" \"npm run dev:flask\"",
     "dev:next": "next dev",
-    "dev:flask": "pip install -r requirements.txt && python app.py",
+    "dev:flask": "python -m flask run",
     "build": "next build",
-    "start": "next start"
+    "start": "concurrently \"next start\" \"python -m flask run\""
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.12",

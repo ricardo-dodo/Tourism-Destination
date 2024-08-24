@@ -3,8 +3,14 @@ import tensorflow as tf
 import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
+from flask_cors import CORS
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
 # Load the model
 model = tf.keras.models.load_model('tourism_recommendation_model.h5')
@@ -48,4 +54,5 @@ def generate_recommendations(place_id):
     return top_place_names
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)

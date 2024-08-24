@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PieController, ArcElement } from 'chart.js';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import dynamic from 'next/dynamic';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PieController, ArcElement);
+
+const MapComponent = dynamic(() => import('./MapComponent'), { ssr: false });
 
 function calculateMapBounds(mapData: any[]): { center: [number, number]; zoom: number } {
   if (!mapData || mapData.length === 0) return { center: [0, 0], zoom: 2 };
@@ -68,16 +68,6 @@ const Dashboard: React.FC = () => {
     };
 
     fetchData();
-  }, []);
-
-  useEffect(() => {
-    // Fix Leaflet icon issue
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-      iconUrl: require('leaflet/dist/images/marker-icon.png'),
-      shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-    });
   }, []);
 
   const categoryData = {
@@ -163,30 +153,7 @@ const Dashboard: React.FC = () => {
         <h2 className="text-2xl font-bold mb-4 text-green-600">Tourism Destination Map</h2>
         <div className="h-80">
           {mapData ? (
-            <MapContainer center={mapBounds.center} zoom={mapBounds.zoom} style={{ height: '100%', width: '100%' }}>
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              />
-              {mapData.map((place: any) => (
-                <Marker 
-                  key={place.id} 
-                  position={[place.lat, place.lng]}
-                  icon={new L.Icon({
-                    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                  })}
-                >
-                  <Popup>
-                    <div>
-                      <h3 className="font-bold">{place.name}</h3>
-                      <p>Category: {place.category}</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
+            <MapComponent mapData={mapData} mapBounds={mapBounds} />
           ) : (
             <p>Loading map data...</p>
           )}

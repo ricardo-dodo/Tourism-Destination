@@ -25,15 +25,29 @@ const RecommendationForm: React.FC<RecommendationFormProps> = ({ onRecommendatio
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch('/api/recommend', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ place_id: placeId }),
-    });
-    const data = await res.json();
-    onRecommendations(data);
+    try {
+      const res = await fetch('/api/recommend', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ place_id: placeId }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to fetch recommendations');
+      }
+      const data = await res.json();
+      onRecommendations(data);
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      onRecommendations([]);
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert('An unknown error occurred. Please try again later.');
+      }
+    }
   };
 
   return (
