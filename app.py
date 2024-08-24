@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
 
@@ -15,33 +16,35 @@ places_df = pd.read_csv('tourism_with_id.csv')
 # Replace 'path_to_your_ratings_data.csv' with the path to your ratings data
 ratings_df = pd.read_csv('tourism_rating.csv')
 
-@app.route('/')
-def home():
-    return render_template('index.html')
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
-    user_id = int(request.form['user_id'])
-    recommendations = generate_recommendations(user_id)
-    return render_template('index.html', recommendations=recommendations)
+    place_id = int(request.json['place_id'])
+    recommendations = generate_recommendations(place_id)
+    return jsonify(recommendations)
 
-def generate_recommendations(user_id):
-    # Filter places that the user has not rated
-    rated_places = ratings_df[ratings_df['User_Id'] == user_id]['Place_Id'].unique()
-    unrated_places = places_df[~places_df['Place_Id'].isin(rated_places)]
-
-    # Predict ratings for the unrated places
-    user_data = np.array([user_id] * len(unrated_places))
-    place_data = unrated_places['Place_Id'].values
-    predictions = model.predict([user_data, place_data])
-    predicted_ratings = predictions.flatten()
-
-    # Sort the unrated places based on the predicted ratings
-    unrated_places['Predicted_Rating'] = predicted_ratings
-    top_places = unrated_places.sort_values(by='Predicted_Rating', ascending=False).head(5)
-
-    # Get the names of the top-rated places
-    top_place_names = top_places['Place_Name'].tolist()
+def generate_recommendations(place_id):
+    # Create a pivot table: places as rows, users as columns, ratings as values
+    pivot_table = ratings_df.pivot(index='Place_Id', columns='User_Id', values='Place_Ratings').fillna(0)
+    
+    # Calculate cosine similarity between places
+    similarity_matrix = cosine_similarity(pivot_table)
+    
+    # Get the index of the input place_id
+    place_index = pivot_table.index.get_loc(place_id)
+    
+    # Get similarity scores for the input place
+    similarity_scores = list(enumerate(similarity_matrix[place_index]))
+    
+    # Sort places based on similarity scores
+    similarity_scores = sorted(similarity_scores, key=lambda x: x[1], reverse=True)
+    
+    # Get top 5 similar places (excluding the input place itself)
+    top_similar_places = similarity_scores[1:6]
+    
+    # Get the names of the top similar places
+    top_place_names = [places_df.loc[places_df['Place_Id'] == pivot_table.index[i], 'Place_Name'].values[0] for i, _ in top_similar_places]
+    
     return top_place_names
 
 if __name__ == '__main__':
