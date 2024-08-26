@@ -1,6 +1,4 @@
-from flask import Flask, request, jsonify, render_template
-import tensorflow as tf
-import numpy as np
+from flask import Flask, request, jsonify
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from flask_cors import CORS
@@ -12,16 +10,18 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Load the model
-model = tf.keras.models.load_model('tourism_recommendation_model.h5')
-
 # Load your places data
-places_df = pd.read_csv('tourism_with_id.csv')
+places_df = pd.read_csv('public/tourism_with_id.csv')
 
-# Assuming you have a DataFrame with user ratings
-# Replace 'path_to_your_ratings_data.csv' with the path to your ratings data
-ratings_df = pd.read_csv('tourism_rating.csv')
+# Load ratings data
+ratings_df = pd.read_csv('public/tourism_rating.csv')
 
+# Create a pivot table: places as rows, users as columns, ratings as values
+# Use aggfunc='mean' to handle duplicate entries
+pivot_table = ratings_df.pivot_table(index='Place_Id', columns='User_Id', values='Place_Ratings', aggfunc='mean').fillna(0)
+
+# Calculate cosine similarity between places
+similarity_matrix = cosine_similarity(pivot_table)
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
@@ -30,28 +30,24 @@ def recommend():
     return jsonify(recommendations)
 
 def generate_recommendations(place_id):
-    # Create a pivot table: places as rows, users as columns, ratings as values
-    pivot_table = ratings_df.pivot(index='Place_Id', columns='User_Id', values='Place_Ratings').fillna(0)
-    
-    # Calculate cosine similarity between places
-    similarity_matrix = cosine_similarity(pivot_table)
-    
-    # Get the index of the input place_id
     place_index = pivot_table.index.get_loc(place_id)
-    
-    # Get similarity scores for the input place
     similarity_scores = list(enumerate(similarity_matrix[place_index]))
-    
-    # Sort places based on similarity scores
     similarity_scores = sorted(similarity_scores, key=lambda x: x[1], reverse=True)
-    
-    # Get top 5 similar places (excluding the input place itself)
     top_similar_places = similarity_scores[1:6]
     
-    # Get the names of the top similar places
-    top_place_names = [places_df.loc[places_df['Place_Id'] == pivot_table.index[i], 'Place_Name'].values[0] for i, _ in top_similar_places]
+    recommendations = []
+    for i, score in top_similar_places:
+        place_id = pivot_table.index[i]
+        place_info = places_df.loc[places_df['Place_Id'] == place_id].iloc[0]
+        recommendations.append({
+            'Place_Id': int(place_id),
+            'Place_Name': place_info['Place_Name'],
+            'Category': place_info['Category'],
+            'Price': float(place_info['Price']),
+            'Similarity_Score': float(score)
+        })
     
-    return top_place_names
+    return recommendations
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

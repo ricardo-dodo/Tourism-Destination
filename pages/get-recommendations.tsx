@@ -4,10 +4,18 @@ import RecommendationList from '../components/RecommendationList';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
-const GetRecommendations: React.FC = () => {
-  const [recommendations, setRecommendations] = useState<string[]>([]);
+interface Recommendation {
+  Place_Id: number;
+  Place_Name: string;
+  Category: string;
+  Price: number;
+  Similarity_Score: number;
+}
 
-  const handleRecommendations = (data: string[]) => {
+const GetRecommendations: React.FC = () => {
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+
+  const handleRecommendations = (data: Recommendation[]) => {
     setRecommendations(data);
   };
 

@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
+interface Recommendation {
+  Place_Id: number;
+  Place_Name: string;
+  Category: string;
+  Price: number;
+  Similarity_Score: number;
+}
+
 interface RecommendationFormProps {
-  onRecommendations: (data: string[]) => void;
+  onRecommendations: (data: Recommendation[]) => void;
 }
 
 interface Place {
