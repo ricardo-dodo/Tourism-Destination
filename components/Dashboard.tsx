@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PieController, ArcElement } from 'chart.js';
 import dynamic from 'next/dynamic';
+import ClusterList from './ClusterList';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PieController, ArcElement);
 
@@ -41,29 +42,40 @@ const Dashboard: React.FC = () => {
   const [topRatedPlaces, setTopRatedPlaces] = useState<{ name: string; rating: number }[]>([]);
   const [ageDistribution, setAgeDistribution] = useState<{ [key: string]: number }>({});
   const [mapBounds, setMapBounds] = useState<{ center: [number, number]; zoom: number }>({ center: [0, 0], zoom: 2 });
+  const [clusters, setClusters] = useState([]);
+  const [activeTab, setActiveTab] = useState<'charts' | 'clusters'>('charts');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('/api/dashboard-data');
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data');
+        const [dashboardResponse, clustersResponse] = await Promise.all([
+          fetch('/api/dashboard-data'),
+          fetch('/api/clusters')
+        ]);
+
+        if (!dashboardResponse.ok || !clustersResponse.ok) {
+          throw new Error('Failed to fetch data');
         }
-        const data = await response.json();
-        setCategories(data.categories || []);
-        setPriceRanges(data.priceRanges || []);
-        setMapData(data.mapData || null);
-        setTopRatedPlaces(data.topRatedPlaces || []);
-        setAgeDistribution(data.ageDistribution || {});
-        const bounds = calculateMapBounds(data.mapData || []);
+
+        const dashboardData = await dashboardResponse.json();
+        const clustersData = await clustersResponse.json();
+
+        setCategories(dashboardData.categories || []);
+        setPriceRanges(dashboardData.priceRanges || []);
+        setMapData(dashboardData.mapData || null);
+        setTopRatedPlaces(dashboardData.topRatedPlaces || []);
+        setAgeDistribution(dashboardData.ageDistribution || {});
+        const bounds = calculateMapBounds(dashboardData.mapData || []);
         setMapBounds(bounds);
+        setClusters(clustersData);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error fetching data:', error);
         setCategories([]);
         setPriceRanges([]);
         setMapData(null);
         setTopRatedPlaces([]);
         setAgeDistribution({});
+        setClusters([]);
       }
     };
 
@@ -128,57 +140,77 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-4 text-pink-600">Top 10 Categories</h2>
-        <div className="h-80">
-          {categories.length > 0 ? (
-            <Bar data={categoryData} options={chartOptions} />
-          ) : (
-            <p>Loading category data...</p>
-          )}
-        </div>
+    <div className="space-y-8">
+      <div className="flex space-x-4 mb-4">
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'charts' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('charts')}
+        >
+          Charts
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg ${activeTab === 'clusters' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+          onClick={() => setActiveTab('clusters')}
+        >
+          Clusters
+        </button>
       </div>
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-4 text-blue-600">Price Range Distribution</h2>
-        <div className="h-80">
-          {priceRanges.length > 0 ? (
-            <Bar data={priceRangeData} options={chartOptions} />
-          ) : (
-            <p>Loading price range data...</p>
-          )}
+      {activeTab === 'charts' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-pink-600">Top 10 Categories</h2>
+            <div className="h-80">
+              {categories.length > 0 ? (
+                <Bar data={categoryData} options={chartOptions} />
+              ) : (
+                <p>Loading category data...</p>
+              )}
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-blue-600">Price Range Distribution</h2>
+            <div className="h-80">
+              {priceRanges.length > 0 ? (
+                <Bar data={priceRangeData} options={chartOptions} />
+              ) : (
+                <p>Loading price range data...</p>
+              )}
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-green-600">Tourism Destination Map</h2>
+            <div className="h-80">
+              {mapData ? (
+                <MapComponent mapData={mapData} mapBounds={mapBounds} />
+              ) : (
+                <p>Loading map data...</p>
+              )}
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-yellow-600">Top 10 Rated Places</h2>
+            <div className="h-80">
+              {topRatedPlaces.length > 0 ? (
+                <Bar data={topRatedData} options={chartOptions} />
+              ) : (
+                <p>Loading top rated places data...</p>
+              )}
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-2xl font-bold mb-4 text-purple-600">Age Distribution of Visitors</h2>
+            <div className="h-80">
+              {Object.keys(ageDistribution).length > 0 ? (
+                <Pie data={ageDistributionData} options={{ responsive: true, maintainAspectRatio: false }} />
+              ) : (
+                <p>Loading age distribution data...</p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-4 text-green-600">Tourism Destination Map</h2>
-        <div className="h-80">
-          {mapData ? (
-            <MapComponent mapData={mapData} mapBounds={mapBounds} />
-          ) : (
-            <p>Loading map data...</p>
-          )}
-        </div>
-      </div>
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-4 text-yellow-600">Top 10 Rated Places</h2>
-        <div className="h-80">
-          {topRatedPlaces.length > 0 ? (
-            <Bar data={topRatedData} options={chartOptions} />
-          ) : (
-            <p>Loading top rated places data...</p>
-          )}
-        </div>
-      </div>
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-4 text-purple-600">Age Distribution of Visitors</h2>
-        <div className="h-80">
-          {Object.keys(ageDistribution).length > 0 ? (
-            <Pie data={ageDistributionData} options={{ responsive: true, maintainAspectRatio: false }} />
-          ) : (
-            <p>Loading age distribution data...</p>
-          )}
-        </div>
-      </div>
+      ) : (
+        <ClusterList clusters={clusters} />
+      )}
     </div>
   );
 };
