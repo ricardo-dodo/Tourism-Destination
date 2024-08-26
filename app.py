@@ -4,6 +4,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 
 load_dotenv()
 
@@ -22,6 +24,16 @@ pivot_table = ratings_df.pivot_table(index='Place_Id', columns='User_Id', values
 
 # Calculate cosine similarity between places
 similarity_matrix = cosine_similarity(pivot_table)
+
+# Add this after loading the data
+scaler = StandardScaler()
+features = ['Price']  # You can add more features if available
+X = scaler.fit_transform(places_df[features])
+
+# Perform K-means clustering
+n_clusters = 5  # You can adjust this number
+kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+places_df['Cluster'] = kmeans.fit_predict(X)
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
@@ -48,6 +60,19 @@ def generate_recommendations(place_id):
         })
     
     return recommendations
+
+@app.route('/clusters', methods=['GET'])
+def get_clusters():
+    clusters = []
+    for i in range(n_clusters):
+        cluster_places = places_df[places_df['Cluster'] == i]
+        cluster_info = {
+            'cluster_id': i,
+            'avg_price': float(cluster_places['Price'].mean()),
+            'places': cluster_places[['Place_Id', 'Place_Name', 'Category', 'Price']].to_dict('records')
+        }
+        clusters.append(cluster_info)
+    return jsonify(clusters)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
